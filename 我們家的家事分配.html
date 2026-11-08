@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我們家的家事分配</title>
+<style>
+:root{--bg:#faf7f2;--card:#fff;--tx:#2b2620;--mu:#8a8177;--ac:#d9622b;--ok:#3a9a5b;--bad:#d03a3a;--bd:#e8e1d6;--k:#4a90d9;--d:#8a6bd1;--m:#e0709a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1a17;--card:#2a2622;--tx:#f1ebe3;--mu:#a39a8e;--bd:#3d372f;--ac:#ef8650}}
+:root[data-theme="dark"]{--bg:#1d1a17;--card:#2a2622;--tx:#f1ebe3;--mu:#a39a8e;--bd:#3d372f;--ac:#ef8650}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:inherit}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:560px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:22px;margin:4px 0 10px}h2{font-size:16px;margin:22px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:8px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.sp{flex:1}
+.chip{border:2px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:6px 14px;font-size:15px}
+.chip.on{border-color:var(--ac);background:var(--ac);color:#fff}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;color:#fff}
+.k{background:var(--k)}.d{background:var(--d)}.m{background:var(--m)}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:8px 14px}
+.btn.g{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+.mu{color:var(--mu);font-size:13px}.pen{border-color:var(--bad)}.pen b{color:var(--bad)}
+.done{opacity:.7}.bar{height:10px;border-radius:5px;background:var(--bd);overflow:hidden;margin:3px 0 8px}
+.bar i{display:block;height:100%;background:var(--ok)}
+select{font:inherit;padding:6px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+dialog{border:0;border-radius:16px;background:var(--card);color:var(--tx);max-width:92vw;width:380px}
+dialog img{max-width:100%;border-radius:10px}
+details{margin-bottom:6px}summary{cursor:pointer;padding:6px 0}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:12px;display:none;max-width:90vw;z-index:9}
+</style></head><body><main>
+<h1>🏠 我們家的家事</h1>
+<div id="app"><p class="mu">載入中…</p></div>
+</main>
+<input type="file" id="fi" accept="image/*" capture="environment" hidden>
+<dialog id="dlg"></dialog><div id="toast"></div>
+<script>
+const P={k:{n:'小孩',e:'🧒'},d:{n:'爸爸',e:'👨'},m:{n:'媽媽',e:'👩'}},IDS=['k','d','m'],ALL=[0,1,2,3,4,5,6];
+const C=[
+{n:'洗衣＋晾衣',w:3,d:[1,3,5],lab:{1:'小孩的衣服',3:'爸爸的衣服',5:'媽媽的衣服'}},
+{n:'收衣＋摺衣',w:2,d:[2,4,6],lab:{2:'小孩的衣服',4:'爸爸的衣服',6:'媽媽的衣服'}},
+{n:'吸地＋拖地',w:2,d:[2,4,6]},{n:'整理後陽臺',w:2,d:[0]},
+{n:'洗水槽',w:1,d:ALL},{n:'整理中島',w:1,d:ALL},{n:'整理餐桌',w:1,d:ALL},{n:'整理沙發（抱枕排好、椅子歸位、遙控器放回）',w:1,d:ALL},{n:'擦中島',w:1,d:[0,2,4,6]},{n:'擦客廳桌',w:1,d:[0,1,3,5]},{n:'換狗水（菜瓜布洗淨＋漱口水）',w:1,d:ALL},{n:'拉開客廳窗簾',w:1,d:ALL},
+{n:'餵布朗尼（早餐）',w:1,d:ALL},{n:'餵布朗尼（晚餐）',w:1,d:ALL},{n:'擦布朗尼屁股',w:1,d:ALL},{n:'倒垃圾',w:1,d:[2,5]},{n:'倒回收',w:1,d:[4]}];
+const $=i=>document.getElementById(i);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>ymd(new Date());
+const addD=(s,n)=>{const [y,m,d]=s.split('-').map(Number);return ymd(new Date(y,m-1,d+n))};
+const mon=()=>{const x=new Date();x.setDate(x.getDate()-((x.getDay()+6)%7));return ymd(x)};
+const dowOf=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).getDay()};
+const WD=['日','一','二','三','四','五','六'];
+let S=null,db=null,ref=null,me=null,pend=null,WM='',wk='',bk=null;
+try{me=localStorage.getItem('me')}catch(e){}
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2600)}
+
+function gen(ws,load){
+  const tasks=[],L={...load},cnt={};
+  for(let i=0;i<7;i++){
+    const date=addD(ws,i),dow=dowOf(date);
+    const day=C.filter(c=>c.d.includes(dow)).sort((a,b)=>b.w-a.w);
+    for(const c of day){
+      const sc=p=>L[p]*1000+(cnt[p+c.n]||0)*10+(IDS.indexOf(p)+i+c.w)%3;
+      const o=IDS.slice().sort((a,b)=>sc(a)-sc(b))[0];
+      L[o]+=c.w;cnt[o+c.n]=(cnt[o+c.n]||0)+1;
+      tasks.push({id:date+'-'+c.n,date,n:c.n+(c.lab&&c.lab[dow]?'（'+c.lab[dow]+'）':''),w:c.w,o,s:'t'});
+    }
+  }
+  return {tasks,load:L};
+}
+function ensure(){
+  let ch=false;
+  if(!S||!S.tasks){S={v:2,ws:'',tasks:[],load:{k:0,d:0,m:0},cr:{k:0,d:0,m:0},pt:{k:0,d:0,m:0},log:[]};ch=true}
+  if(S.v!==2){S.v=2;S.ws='';S.tasks=[];S.load={k:0,d:0,m:0};S.pt=S.pt||{k:0,d:0,m:0};ch=true}
+  const td=today(),add=[];
+  for(const t of S.tasks)if(t.s==='t'&&t.date<td){
+    t.s='x';ch=true;
+    for(let i=0;i<(t.pen?1:2);i++)add.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6),date:td,n:t.n.replace(/^🔥/,''),w:t.w,o:t.o,s:'t',pen:1});
+    S.pt[t.o]-=2;S.log.unshift(P[t.o].n+' 沒做「'+t.n.replace(/^🔥/,'')+'」，罰兩倍＋扣 2 點');
+  }
+  S.tasks.push(...add);
+  if(S.ws!==mon()){
+    const keep=S.tasks.filter(t=>t.s==='t'&&(t.pen||t.mk));
+    const g=gen(mon(),S.load);
+    S.tasks=[...keep,...g.tasks];S.load=g.load;S.ws=mon();ch=true;
+  }
+  S.log=S.log.slice(0,20);
+  return ch||add.length>0;
+}
+function save(){
+  if(ref)ref.set(S).catch(()=>toast('儲存失敗，請重試'));
+  else try{localStorage.setItem('S',JSON.stringify(S))}catch(e){}
+  R();
+}
+function mut(f){f();save()}
+
+const conflict=(t,no)=>(t.n==='洗水槽'&&S.tasks.some(x=>x.date===t.date&&x.n==='煮飯'&&x.o===no&&x.s==='t'))||(t.n==='煮飯'&&S.tasks.some(x=>x.date===t.date&&x.n==='洗水槽'&&x.o===no&&x.s==='t'));
+const tag=p=>'<span class="tag '+p+'">'+P[p].e+' '+P[p].n+'</span>';
+const dots=w=>'●'.repeat(w);
+
+function R(){
+  if(!S){return}
+  const td=today(),tt=S.tasks.filter(t=>t.date===td&&!t.b),bt=S.tasks.filter(t=>t.date===td&&t.b);
+  let h='<div class="row"><span class="mu">我是：</span>'+IDS.map(p=>'<button class="chip'+(me===p?' on':'')+'" onclick="setMe(\''+p+'\')">'+P[p].e+' '+P[p].n+'</button>').join('')+'</div>';
+  if(me){
+    const c=S.cr[me]||0;
+    h+='<div class="card row" style="margin-top:10px"><span>🎟️ <b>'+c+'</b> 張券 · ⭐ <b>'+S.pt[me]+'</b> 點</span><span class="sp"></span><button class="btn g" onclick="exch()">3點換券</button><button class="btn g" onclick="useCr()"'+(c?'':' disabled style="opacity:.4"')+'>用券</button></div>';
+  }
+  h+='<h2>今天（週'+WD[new Date().getDay()]+'）</h2>';
+  if(!tt.length)h+='<p class="mu">今天沒有家事 🎉</p>';
+  for(const t of tt){
+    h+='<div class="card'+(t.pen?' pen':'')+(t.s==='d'?' done':'')+'"><div class="row"><b>'+(t.pen?'🔥 罰 · ':'')+esc(t.n)+'</b><span class="sp"></span>'+tag(t.o)+'</div><div class="row mu"><span>'+dots(t.w)+'</span>';
+    if(t.s!=='t')h+='<span>'+(t.s==='p'?'⏳ '+P[t.by].n+' 已送出，待確認':'✅ '+P[t.by].n+' 完成'+(t.by!==t.o?'（幫忙 +1 券）':''))+'</span><span class="sp"></span><button class="btn g" onclick="photo(\''+t.id+'\')">'+(t.s==='p'&&me&&me!==t.by?'確認照片':'看照片')+'</button>';
+    else h+='<span class="sp"></span><button class="btn" onclick="doIt(\''+t.id+'\')">📸 完成上傳</button>';
+    h+='</div></div>';
+  }
+  h+='<h2>⭐ 加分任務</h2><div class="card"><div class="row">'+(S.walk?'<span>🐕 '+P[S.walk.by].n+' 遛狗中（已拍 '+S.walk.ts.length+' 張）</span><span class="sp"></span><button class="btn g" onclick="walkBtn(\'c\')">📸 打卡</button><button class="btn" onclick="walkBtn(\'e\')">結束</button>':'<button class="btn" onclick="walkBtn(\'s\')">🐕 開始遛狗</button><button class="btn g" onclick="bonus(\'🐾 幫狗擦腳\',1)">🐾 擦腳 +1</button><button class="btn g" onclick="bonus(\'🍎 切水果\',1)">🍎 切水果 +1</button>')+'</div><div class="mu" style="margin-top:6px">遛狗每 15 分鐘 +1 點，每 15 分鐘內要拍照打卡。</div>'+bt.map(t=>'<div class="row" style="margin-top:6px"><span>'+esc(t.n)+' '+(t.s==='p'?'⏳':'✅')+'</span>'+tag(t.by)+'<span class="sp"></span><button class="btn g" onclick="photo(\''+t.id+'\')">'+(t.s==='p'&&me&&me!==t.by?'確認':'照片')+'</button></div>').join('')+'</div>';h+='<h2>臨時加開</h2><div class="card row"><select id="xn"><option>煮飯</option><option>買菜</option></select><select id="xo">'+IDS.map(p=>'<option value="'+p+'">'+P[p].n+'</option>').join('')+'</select><button class="btn" onclick="addX()">加入今天</button><div class="mu" style="width:100%">煮飯的人，當天不用洗水槽。</div></div>';
+  h+='<h2>本週公平指數</h2><div class="card">';
+  const wk=S.tasks.filter(t=>t.date>=S.ws&&t.date<=addD(S.ws,6)&&t.s!=='x'&&!t.b);
+  const as={},dn={};IDS.forEach(p=>{as[p]=0;dn[p]=0});
+  wk.forEach(t=>{as[t.o]+=t.w;if(t.s!=='t')dn[t.by]+=t.w});
+  const mx=Math.max(1,...IDS.map(p=>as[p]));
+  IDS.forEach(p=>{h+='<div class="row">'+tag(p)+'<span class="mu">分配 '+as[p]+' · 已做 '+dn[p]+' · 🎟️'+S.cr[p]+' · ⭐'+S.pt[p]+'</span></div><div class="bar"><i style="width:'+Math.round(dn[p]/mx*100)+'%"></i></div>'});
+  h+='<div class="mu">家事「分量」：洗衣＋晾衣 3、收衣＋摺衣 2、吸拖地 2、後陽臺 2，其他 1。系統用累計分量分配，罰加碼不會讓別人變輕鬆。</div></div>';
+  h+='<h2>📜 規則</h2><div class="card" style="font-size:14px">🔒 <b>認證</b>：完成後現場拍「你本人＋做好的地方」，照片自動蓋上姓名、家事、時間；超過 5 分鐘前拍的會被拒收。送出後要由另一位家人點「確認」才算數，有問題就退回。<br>✅ <b>本分</b>：自己的家事做完不加分，沒做要受罰。<br>🎟️ <b>幫忙</b>：幫別人做完並被確認，+1 張指定券，可指定別人做你的一件家事。<br>⭐ <b>加分</b>：遛狗每 15 分鐘 +1 點（開始、每 15 分鐘、結束都要拍照；超過 20 分鐘沒打卡的那段不算）；擦腳、切水果各 +1 點。3 點換 1 張券。<br>🙏 <b>加班</b>：事先用券請人代做，或「借班」（別人先做，你隔天補做同一件）。<br>🔥 <b>沒做</b>：隔天變兩件罰做、−2 點；點數為負不能用券和借班。<br>🏆 <b>週結算（週日）</b>：點數最低的人請全家喝飲料，並負責下週最不想做的家事一次；最高的人決定一次晚餐。</div>';h+='<h2>本週安排</h2>';
+  for(let i=0;i<7;i++){
+    const d=addD(S.ws,i),l=S.tasks.filter(t=>t.date===d&&t.s!=='x'&&!t.b);
+    h+='<details'+(d===td?' open':'')+'><summary>'+d.slice(5)+' 週'+WD[dowOf(d)]+' <span class="mu">'+l.length+' 項</span></summary>'+l.map(t=>'<div class="row mu" style="padding:2px 0">'+(t.s==='d'?'✅':t.s==='p'?'⏳':'⬜')+' '+esc(t.n)+'<span class="sp"></span>'+tag(t.o)+'</div>').join('')+'</details>';
+  }
+  if(S.log.length)h+='<h2>紀錄</h2><div class="card mu">'+S.log.map(esc).join('<br>')+'</div>';
+  if(!ref)h+='<p class="mu">⚠️ 目前只存在這支手機，無法與家人同步。</p>';
+  $('app').innerHTML=h;
+}
+function setMe(p){me=p;try{localStorage.setItem('me',p)}catch(e){}R()}
+function doIt(id){
+  if(!me)return toast('請先選「我是誰」');
+  pend=id;$('fi').value='';$('fi').click();
+}
+function shrink(f){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const r=Math.min(1,480/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*r;c.height=im.height*r;const g=c.getContext('2d');g.drawImage(im,0,0,c.width,c.height);g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,c.height-26,c.width,26);g.fillStyle='#fff';g.font='14px sans-serif';g.fillText(WM,8,c.height-8);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.6))};im.onerror=no;im.src=u})}
+$('fi').onchange=async e=>{
+  const f=e.target.files[0];if(!f||!pend)return;
+  const id=pend;pend=null;if(f.lastModified&&Date.now()-f.lastModified>300000)return toast('照片不是剛拍的，請現場重拍（要拍到你和場地）');const tk0=S.tasks.find(x=>x.id===id);WM=P[me].n+' · '+(tk0?tk0.n.slice(0,12):id[0]==='W'?'遛狗':bk?bk.n:'')+' · '+new Date().toLocaleString('zh-TW',{hour12:false});
+  try{
+    const img=await shrink(f);
+    if(ref)await db.doc('photos/'+id).set({img});else try{localStorage.setItem('ph'+id,img)}catch(x){}
+  }catch(x){return toast('照片上傳失敗')}
+  if(id[0]==='W')return walkStep(id);if(id[0]==='B')return bonusStep(id);
+  mut(()=>{
+    const t=S.tasks.find(x=>x.id===id);if(!t||t.s!=='t')return;
+    t.s='p';t.by=me;t.at=Date.now();
+    
+    toast('已送出，等家人確認 ⏳');
+  });
+};
+async function photo(id){
+  const tk=S.tasks.find(x=>x.id===id);const ids=tk&&tk.ph?tk.ph:[id];const imgs=[];
+  for(const i of ids){try{let im=null;if(ref){const s=await db.doc('photos/'+i).get();im=s.exists?s.data().img:null}else im=localStorage.getItem('ph'+i);if(im)imgs.push(im)}catch(e){}}
+  const cf=tk&&tk.s==='p'&&me&&me!==tk.by;$('dlg').innerHTML=(imgs.length?imgs.map(i=>'<img src="'+i+'" style="margin-bottom:6px">').join(''):'<p>沒有照片</p>')+'<p class="mu">'+(tk?esc(tk.n)+' · '+P[tk.by||tk.o].n:'')+'</p><div class="row">'+(cf?'<button class="btn" onclick="conf(\''+id+'\',1)">✅ 確認</button><button class="btn g" onclick="conf(\''+id+'\',0)">退回</button>':'')+'<button class="btn g" onclick="this.closest(\'dialog\').close()">關閉</button></div>';
+  $('dlg').showModal();
+}
+function walkBtn(k){if(!me)return toast('請先選「我是誰」');wk=k;pend='W'+Date.now();$('fi').value='';$('fi').click()}
+function walkStep(id){mut(()=>{const now=Date.now();if(wk==='s'){S.walk={by:me,ts:[now],ph:[id]};return}if(!S.walk)return;S.walk.ts.push(now);S.walk.ph.push(id);if(wk==='e'){const ts=S.walk.ts;let pt=0;for(let i=1;i<ts.length;i++){const g=(ts[i]-ts[i-1])/60000;if(g<=20)pt+=Math.max(1,Math.round(g/15))}const min=Math.round((ts[ts.length-1]-ts[0])/60000);S.tasks.push({id:'b'+now,date:today(),n:'🐕 遛狗 '+min+' 分鐘（有效 '+pt*15+' 分）',w:0,b:1,pt,o:S.walk.by,by:S.walk.by,s:'p',at:now,ph:S.walk.ph});S.walk=null;toast('遛狗結束，等家人確認 +'+pt+' 點')}})}
+function bonus(n,pt){if(!me)return toast('請先選「我是誰」');bk={n,pt};pend='B'+Date.now();$('fi').value='';$('fi').click()}
+function bonusStep(id){mut(()=>{S.tasks.push({id,date:today(),n:bk.n,w:0,b:1,pt:bk.pt,o:me,by:me,s:'p',at:Date.now()});toast('已送出，等家人確認 ⏳')})}
+function exch(){if(S.pt[me]<3)return toast('需要 3 點才能換 1 張券');mut(()=>{S.pt[me]-=3;S.cr[me]=(S.cr[me]||0)+1})}
+function conf(id,ok){const t=S.tasks.find(x=>x.id===id);if(!t||t.s!=='p'||me===t.by)return;$('dlg').close();mut(()=>{if(!ok){S.log.unshift(P[me].n+' 退回了 '+P[t.by].n+' 的「'+t.n+'」');if(t.b)S.tasks=S.tasks.filter(x=>x.id!==id);else{t.s='t';delete t.by}return}t.s='d';if(t.b){S.pt[t.by]+=t.pt;S.log.unshift(P[t.by].n+' '+t.n+' +'+t.pt+' 點')}else if(t.by!==t.o){S.cr[t.by]=(S.cr[t.by]||0)+1;S.log.unshift(P[t.by].n+' 幫 '+P[t.o].n+' 做了「'+t.n+'」，+1 指定券')}})}
+function addX(){
+  const n=$('xn').value,o=$('xo').value;
+  mut(()=>{
+    S.tasks.push({id:'x'+Date.now(),date:today(),n,w:3,o,s:'t'});S.load[o]+=3;
+    if(n==='煮飯'){
+      const sk=S.tasks.find(t=>t.date===today()&&t.n==='洗水槽'&&t.o===o&&t.s==='t');
+      if(sk){const no=IDS.filter(p=>p!==o).sort((a,b)=>S.load[a]-S.load[b])[0];sk.o=no;S.load[o]-=1;S.load[no]+=1;S.log.unshift(P[o].n+' 煮飯，洗水槽改由 '+P[no].n)}
+    }
+  });
+}
+function useCr(){
+  if(S.pt[me]<0)return toast('點數是負的，先做加分任務補回來才能用券／借班');const mine=S.tasks.filter(t=>t.o===me&&t.s==='t'&&t.date>=today());
+  if(!mine.length)return toast('你目前沒有待做的家事');
+  $('dlg').innerHTML='<b>使用指定券</b><p class="mu">選一件你的家事，指定別人幫你做。</p><p><select id="ct" style="width:100%">'+mine.map(t=>'<option value="'+t.id+'">'+t.date.slice(5)+' '+esc(t.n)+'</option>').join('')+'</select></p><p><select id="cm" style="width:100%"><option value="c">用 1 張券（不用補做）</option><option value="b">借班（明天補做同一件）</option></select></p><p><select id="cp" style="width:100%">'+IDS.filter(p=>p!==me).map(p=>'<option value="'+p+'">'+P[p].n+'</option>').join('')+'</select></p><div class="row"><button class="btn" onclick="confirmCr()">確定</button><button class="btn g" onclick="this.closest(\'dialog\').close()">取消</button></div>';
+  $('dlg').showModal();
+}
+function confirmCr(){
+  const t=S.tasks.find(x=>x.id===$('ct').value),np=$('cp').value;
+  const bw=$('cm').value==='b';if(!t||(!bw&&(S.cr[me]||0)<1))return;
+  if(conflict(t,np))return toast('那天 '+P[np].n+' 要煮飯，不能洗水槽');
+  $('dlg').close();
+  mut(()=>{if(bw)S.tasks.push({id:'m'+Date.now(),date:addD(today(),1),n:t.n,w:t.w,o:me,s:'t',mk:1});else S.cr[me]--;t.o=np;S.log.unshift(P[me].n+(bw?' 借班，請 ':' 用指定券，請 ')+P[np].n+' 做「'+t.n+'」')});
+}
+
+(async function(){
+  let cl=null;try{cl=await window.claude.use('db')}catch(e){}
+  if(cl){
+    db=cl;ref=db.doc('app/state');
+    const to=setTimeout(()=>{if(!S)$('app').innerHTML='<p class="mu">連線逾時，請重新整理。</p>'},10000);
+    ref.onSnapshot(s=>{clearTimeout(to);S=s.exists?s.data():null;const ch=ensure();if(ch)save();else R()},()=>{$('app').innerHTML='<p class="mu">無法讀取資料，請確認已登入。</p>'});
+  }else{
+    try{S=JSON.parse(localStorage.getItem('S'))}catch(e){}
+    ensure();save();
+  }
+})();
+</script></body></html>
